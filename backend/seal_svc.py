@@ -19,7 +19,8 @@ def list_seals(authorization: AuthHeader = None):
     require_user(authorization)
     with connect() as conn:
         rows = conn.execute(
-            """SELECT s.*, t.ticket_code, t.vehicle_plate FROM gate_seals s
+            """SELECT s.*, t.ticket_code, t.vehicle_plate, t.status ticket_status
+               FROM gate_seals s
                JOIN weigh_tickets t ON t.id=s.ticket_id ORDER BY s.id DESC"""
         ).fetchall()
         return {"items": [dict(r) for r in rows]}
@@ -46,6 +47,13 @@ def create_seal(body: SealIn, authorization: AuthHeader = None):
             ).fetchone()
             if open_hold:
                 raise HTTPException(409, "超重开放不得封闸")
+            peers = conn.execute(
+                """SELECT COUNT(*) c FROM weigh_tickets
+                   WHERE vehicle_plate=? AND bl_ref=? AND status<>'作废'""",
+                (ticket["vehicle_plate"], ticket["bl_ref"]),
+            ).fetchone()["c"]
+            if peers > 1:
+                raise HTTPException(409, "同车双正式并存，禁止封闸升代")
             next_gen = int(ticket["generation"]) + 1
             manifest = body.manifest or format_manifest(
                 dict(ticket), float(ticket["gross_t"]), next_gen

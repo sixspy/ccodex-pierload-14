@@ -10,12 +10,25 @@ from models import LineageIn
 router = APIRouter(tags=["lineage"])
 
 
+def record_succession(
+    conn, from_ticket_id: int, to_ticket_id: int, detail: str, created_at: str
+) -> int:
+    """升代血缘边：旧票 → 新代（二次过磅甲路径同事务写入）。"""
+    cur = conn.execute(
+        """INSERT INTO axle_lineage(from_ticket_id,to_ticket_id,edge_type,detail,created_at)
+           VALUES (?,?,?,?,?)""",
+        (from_ticket_id, to_ticket_id, "二次过磅升代", detail, created_at),
+    )
+    return int(cur.lastrowid)
+
+
 @router.get("/api/lineage")
 def list_lineage(authorization: AuthHeader = None):
     require_user(authorization)
     with connect() as conn:
         rows = conn.execute(
-            """SELECT e.*, a.ticket_code from_code, b.ticket_code to_code
+            """SELECT e.*, a.ticket_code from_code, a.status from_status,
+                      a.vehicle_plate, b.ticket_code to_code, b.status to_status
                FROM axle_lineage e
                JOIN weigh_tickets a ON a.id=e.from_ticket_id
                LEFT JOIN weigh_tickets b ON b.id=e.to_ticket_id

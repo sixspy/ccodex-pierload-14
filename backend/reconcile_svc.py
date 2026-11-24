@@ -43,8 +43,9 @@ def _reconcile_bl(conn, bl_code: str) -> dict:
         "SELECT * FROM bl_manifests WHERE bl_code=?", (bl_code,)
     ).fetchone()
     tickets = conn.execute(
-        """SELECT ticket_code, gross_t, status, generation FROM weigh_tickets
-           WHERE bl_ref=? AND status NOT IN ('作废')""",
+        """SELECT id, ticket_code, vehicle_plate, gross_t, status, generation
+           FROM weigh_tickets
+           WHERE bl_ref=? AND status NOT IN ('作废') ORDER BY id""",
         (bl_code,),
     ).fetchall()
     if not tickets:
@@ -56,23 +57,36 @@ def _reconcile_bl(conn, bl_code: str) -> dict:
             "reason": "无过磅票",
             "tickets": [],
         }
-    ticket_sum = round(sum(float(t["gross_t"]) for t in tickets), 3)
+    # 升代互斥口径：同车同提单只计最新正式票；其余上抛双正式冲突，不得双计
+    heads: dict = {}
+    for t in tickets:
+        heads[t["vehicle_plate"]] = t
+    counted = list(heads.values())
+    counted_ids = {int(t["id"]) for t in counted}
+    excluded = [t for t in tickets if int(t["id"]) not in counted_ids]
+    double_formal = len(excluded) > 0
+    ticket_sum = round(sum(float(t["gross_t"]) for t in counted), 3)
     declared = float(bl["declared_gross_t"])
     matched = validate_bl_match(declared, ticket_sum, tolerance=0.1)
+    balanced = matched and not double_formal
     seal_rows = conn.execute(
         """SELECT s.seal_ref, s.ticket_generation, t.ticket_code
            FROM gate_seals s JOIN weigh_tickets t ON t.id=s.ticket_id
            WHERE t.bl_ref=?""",
         (bl_code,),
     ).fetchall()
-    proof_ok = matched and len(seal_rows) >= 1
+    proof_ok = balanced and len(seal_rows) >= 1
     return {
         "bl_code": bl_code,
         "declared_gross_t": declared,
         "ticket_sum_t": ticket_sum,
-        "balanced": matched,
+        "balanced": balanced,
         "proof_ready": proof_ok,
         "seal_count": len(seal_rows),
+        "double_formal": double_formal,
+        "conflict_reason": "同车双正式并存" if double_formal else "",
+        "counted_tickets": [dict(t) for t in counted],
+        "excluded_tickets": [dict(t) for t in excluded],
         "tickets": [dict(t) for t in tickets],
         "seals": [dict(s) for s in seal_rows],
     }

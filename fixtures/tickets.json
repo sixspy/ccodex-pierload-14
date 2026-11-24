@@ -39,5 +39,27 @@
     "status": "已封闸",
     "generation": 2,
     "created_at": "2026-01-10T08:30:00"
+  },
+  {
+    "ticket_code": "PL-N14a",
+    "lane_code": "LN-N-01-IN",
+    "bl_ref": "BL-2026-0114",
+    "vehicle_plate": "沪N·集1414",
+    "axle_weights": [{"axle": 1, "w": 10.2}, {"axle": 2, "w": 11.0}, {"axle": 3, "w": 11.6}, {"axle": 4, "w": 9.0}],
+    "gross_t": 41.8,
+    "status": "已裁定",
+    "adjudicated_at": "2026-01-14T09:05:00",
+    "created_at": "2026-01-14T09:00:00"
+  },
+  {
+    "ticket_code": "PL-N14b",
+    "lane_code": "LN-N-01-IN",
+    "bl_ref": "BL-2026-0114",
+    "vehicle_plate": "沪N·集1414",
+    "axle_weights": [{"axle": 1, "w": 10.4}, {"axle": 2, "w": 11.2}, {"axle": 3, "w": 11.4}, {"axle": 4, "w": 9.0}],
+    "gross_t": 42.0,
+    "status": "已裁定",
+    "adjudicated_at": "2026-01-14T10:35:00",
+    "created_at": "2026-01-14T10:30:00"
   }
 ]
